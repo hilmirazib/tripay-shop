@@ -1,6 +1,6 @@
 # TriPay Shop
 
-Mini e-commerce (Laravel 11 + Inertia + Vue 3 + MySQL) untuk integrasi **TriPay**.
+Mini e-commerce (Laravel 12 + Inertia + Vue 3 + MySQL) untuk integrasi **TriPay**.
 
 ## Kontak
 - **Nama**: Hilmi Razib Yusuf
