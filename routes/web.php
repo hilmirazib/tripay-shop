@@ -6,9 +6,14 @@ use App\Http\Controllers\Web\InvoiceController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use App\Http\Controllers\Web\CheckoutController;
 
 //Homepage publik (list produk)
 Route::get('/', [ProductController::class, 'publicIndex'])->name('home');
+
+// checkout
+Route::get('/checkout/start', [CheckoutController::class, 'start'])->name('checkout.start'); 
+Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');  
 
 Route::get('/welcome', function () {
     return Inertia::render('Welcome', [
@@ -18,6 +23,7 @@ Route::get('/welcome', function () {
         'phpVersion' => PHP_VERSION,
     ]);
 });
+
 
 
 Route::get('/dashboard', function () {
