@@ -15,6 +15,10 @@ Route::get('/', [ProductController::class, 'publicIndex'])->name('home');
 Route::get('/checkout/start', [CheckoutController::class, 'start'])->name('checkout.start'); 
 Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');  
 
+// payment
+Route::get('/payment/return', [CheckoutController::class, 'return'])->name('tripay.return');
+Route::post('/payment/callback', [CheckoutController::class, 'callback'])->name('tripay.callback');
+
 Route::get('/welcome', function () {
     return Inertia::render('Welcome', [
         'canLogin' => Route::has('login'),

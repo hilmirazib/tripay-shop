@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\Invoice;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use App\Services\TripayService;
 
 class CheckoutController extends Controller
 {
@@ -19,6 +20,7 @@ class CheckoutController extends Controller
         $methods = [
             ['code' => 'QRIS', 'name' => 'QRIS'],
             ['code' => 'BNIVA', 'name' => 'BNI Virtual Account'],
+            ['code' => 'BRIVA', 'name' => 'BRI Virtual Account'],
             ['code' => 'MANDIRIVA', 'name' => 'Mandiri VA'],
             ['code' => 'DANA', 'name' => 'DANA'],
             ['code' => 'OVO', 'name' => 'OVO'],
@@ -31,7 +33,7 @@ class CheckoutController extends Controller
         ]);
     }
 
-    public function store(CheckoutRequest $request)
+    public function store(CheckoutRequest $request, TripayService $tripay)
     {
         $product = Product::findOrFail($request->integer('product_id'));
 
@@ -44,8 +46,71 @@ class CheckoutController extends Controller
             'status'         => 'pending_local',
         ]);
 
-        return redirect()
-            ->route('home')
-            ->with('success', 'Draft invoice dibuat. Lanjutkan pembayaran di langkah berikutnya.');
+        $merchantRef = 'INV-'.now()->format('YmdHis').'-'.$invoice->id;
+
+        $payload = [
+            'method'         => (string)$request->string('payment_method'), 
+            'merchant_ref'   => $merchantRef,
+            'amount'         => (int)$product->price,
+            'customer_name'  => 'Customer '.$invoice->id,
+            'customer_email' => (string)$request->string('buyer_email'),
+            'customer_phone' => (string)$request->string('buyer_phone'),
+            'order_items'    => [[
+                'sku'         => $product->sku,
+                'name'        => $product->name,
+                'price'       => (int)$product->price,
+                'quantity'    => 1,
+            ]],
+            'callback_url'   => route('tripay.callback'),
+            'return_url'     => route('tripay.return'),
+            'expired_time'   => now()->addDay()->timestamp,
+        ];
+
+        $result = $tripay->createTransaction($payload);
+
+        if (!($result['http_ok'] ?? false) || !($result['success'] ?? false)) {
+            $invoice->update([
+                'status' => 'failed_create',
+                'raw_response' => $result['body'] ?? null,
+                'merchant_ref' => $merchantRef,
+            ]);
+            return back()->withErrors(['checkout' => 'Gagal membuat transaksi (HTTP '.$result['status'].'): '.json_encode($result['body'])]);
+        }
+
+        if (!($result['success'] ?? false)) {
+            $invoice->update([
+                'status' => 'failed_create',
+                'raw_response' => $result['body'] ?? null,
+                'merchant_ref' => $merchantRef,
+            ]);
+            return back()->withErrors(['checkout' => $result['message'] ?? 'Gagal membuat transaksi TriPay']);
+        }
+
+        $data = $result['data'] ?? [];
+        $invoice->update([
+            'tripay_reference' => $data['reference'] ?? null,
+            'merchant_ref'     => $data['merchant_ref'] ?? $merchantRef,
+            'checkout_url'     => $data['checkout_url'] ?? null,
+            'status'           => $data['status'] ?? 'UNPAID', // TriPay mengembalikan "UNPAID"
+            'raw_response'     => $result['body'] ?? null,
+        ]);
+
+        if (!empty($data['checkout_url'])) {
+            return Inertia::location($data['checkout_url']); // <<<
+        }
+
+        return redirect()->route('home')->with('success', 'Transaksi dibuat, reference: '.$invoice->tripay_reference);
+    }
+
+    public function return(Request $request)
+    {
+        return Inertia::render('Checkout/Return', [
+            'message' => 'Anda kembali dari halaman pembayaran. Status transaksi akan diperbarui setelah callback.',
+        ]);
+    }
+
+    public function callback(Request $request)
+    {
+        return response()->json(['ok' => true]);
     }
 }
