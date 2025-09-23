@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Invoice extends Model
 {
     protected $fillable = [
-        'product_id', 'tripay_reference', 'buyer_email', 'buyer_phone',
+        'product_id', 'tripay_reference', 'merchant_ref', 'buyer_email', 'buyer_phone',
         'payment_method', 'amount', 'status', 'checkout_url', 'raw_response'
     ];
 
