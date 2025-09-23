@@ -1,5 +1,7 @@
 <script setup>
 import { Head, Link } from '@inertiajs/vue3'
+import FlashToast from '@/Components/FlashToast.vue'
+import NavBar from '@/Components/NavBar.vue'
 
 const props = defineProps({
   filters: Object,
@@ -9,6 +11,8 @@ const props = defineProps({
 
 <template>
   <Head title="Home" />
+  <NavBar />
+  <FlashToast />
   <main class="px-6 max-w-3xl mx-auto">
     <h1 class="text-2xl font-bold mb-3">Produk</h1>
 
