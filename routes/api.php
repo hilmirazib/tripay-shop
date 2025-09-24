@@ -1,3 +1,6 @@
 <?php
+
 use App\Http\Controllers\Web\CheckoutController;
-Route::post('/payment/callback', [CheckoutController::class, 'callback']);
+use Illuminate\Routing\Route;
+
+// Route::post('/payment/callback/api', [CheckoutController::class, 'callback']);

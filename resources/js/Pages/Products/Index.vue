@@ -1,104 +1,184 @@
 <script setup>
 import { Head, Link, router } from '@inertiajs/vue3'
+import AppLayout from '@/Layouts/AppLayout.vue'
+import { ref } from 'vue'
+
+import { useAbility } from '@/composables/useAbility'
+
+const { can } = useAbility()
 
 const props = defineProps({
-  filters: Object,
-  products: Object
+  filters: { type: Object, default: () => ({ q: '' }) },
+  products: { type: Object, required: true }
 })
 
+const q = ref(props.filters?.q ?? '')
+
 function search(e) {
-  const form = e.target
-  const params = new URLSearchParams(new FormData(form))
-  router.get('/admin/products', params, { preserveState: true, preserveScroll: true })
+  const form = e?.target
+  if (form) {
+    const params = new URLSearchParams(new FormData(form))
+    router.get('/admin/products', params, { preserveState: true, preserveScroll: true })
+  } else {
+    router.get('/admin/products', { q: q.value }, { preserveState: true, preserveScroll: true })
+  }
 }
+
+function resetFilters() {
+  q.value = ''
+  router.get('/admin/products', {}, { preserveState: true, preserveScroll: true })
+}
+
+const formatIDR = (n) => (n ?? 0).toLocaleString('id-ID', { maximumFractionDigits: 0 })
 </script>
 
 <template>
-  <Head title="Products" />
-  <main class="px-6 max-w-5xl mx-auto">
-    <h1 class="text-2xl font-bold mb-4">Products</h1>
+  <AppLayout>
+    <Head title="Products" />
 
-    <!-- Search + New -->
-    <div class="flex items-center gap-3 mb-4">
-      <form @submit.prevent="search" class="flex gap-2">
-        <input
-          name="q"
-          :value="filters?.q ?? ''"
-          placeholder="Search by name / SKU"
-          class="border rounded px-3 py-2"
-        />
-        <button
-          type="submit"
-          class="bg-blue-600 text-white px-4 py-2 rounded"
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div class="flex items-center justify-between gap-3 mb-6">
+        <h1 class="text-2xl font-bold">Products</h1>
+        <Link
+          v-if="can('product.create')"
+          href="/admin/products/create"
+          as="button"
+          class="rounded-xl bg-slate-900 text-white px-4 py-2 text-sm hover:bg-slate-800"
         >
-          Search
-        </button>
+          + New
+        </Link>
+      </div>
+
+      <!-- Search -->
+      <form @submit.prevent="search" class="rounded-2xl border border-slate-200 bg-white p-4 mb-4">
+        <div class="flex flex-col sm:flex-row sm:items-end gap-3">
+          <div class="flex-1">
+            <label class="text-sm font-medium">Search</label>
+            <input
+              name="q"
+              v-model="q"
+              placeholder="Search by name / SKU"
+              class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+            />
+          </div>
+          <div class="flex items-center gap-2">
+            <button
+              type="submit"
+              class="rounded-xl bg-slate-900 text-white px-4 py-2 text-sm hover:bg-slate-800"
+            >
+              Search
+            </button>
+            <button
+              type="button"
+              @click="resetFilters"
+              class="rounded-xl border border-slate-300 px-4 py-2 text-sm hover:bg-slate-100"
+            >
+              Reset
+            </button>
+          </div>
+        </div>
       </form>
-      <Link
-        href="/admin/products/create"
-        as="button"
-        class="bg-green-600 text-white px-4 py-2 rounded"
+
+      <!-- Empty state -->
+      <div
+        v-if="!products?.data?.length"
+        class="text-center py-20 border border-dashed border-slate-300 rounded-2xl bg-white"
       >
-        + New
-      </Link>
-    </div>
+        <div class="mx-auto w-14 h-14 rounded-full bg-slate-100 grid place-items-center">
+          <span class="text-2xl">📦</span>
+        </div>
+        <p class="mt-4 font-medium">No products found</p>
+        <p class="text-sm text-slate-500 mt-1">
+          Try a different keyword or reset your search.
+        </p>
+        <div class="mt-6">
+          <button
+            type="button"
+            @click="resetFilters"
+            class="inline-flex rounded-xl border border-slate-300 px-4 py-2 text-sm hover:bg-slate-100"
+          >
+            Reset Search
+          </button>
+        </div>
+      </div>
 
-    <!-- Table -->
-    <div class="overflow-x-auto border rounded">
-      <table class="w-full text-left border-collapse">
-        <thead class="bg-gray-100">
-          <tr>
-            <th class="px-4 py-2 border">ID</th>
-            <th class="px-4 py-2 border">SKU</th>
-            <th class="px-4 py-2 border">Name</th>
-            <th class="px-4 py-2 border">Price</th>
-            <th class="px-4 py-2 border">Reference</th>
-            <th class="px-4 py-2 border w-32"></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="p in products.data" :key="p.id" class="hover:bg-gray-50">
-            <td class="px-4 py-2 border">{{ p.id }}</td>
-            <td class="px-4 py-2 border">{{ p.sku }}</td>
-            <td class="px-4 py-2 border">{{ p.name }}</td>
-            <td class="px-4 py-2 border">Rp {{ (p.price).toLocaleString('id-ID') }}</td>
-            <td class="px-4 py-2 border">{{ p.reference ?? '-' }}</td>
-            <td class="px-4 py-2 border whitespace-nowrap space-x-2">
-              <Link
-                :href="`/admin/products/${p.id}/edit`"
-                as="button"
-                class="bg-yellow-500 text-white px-3 py-1 rounded"
-              >
-                Edit
-              </Link>
-              <Link
-                :href="`/admin/products/${p.id}`"
-                method="delete"
-                as="button"
-                class="bg-red-600 text-white px-3 py-1 rounded"
-                onclick="return confirm('Delete?')"
-              >
-                Delete
-              </Link>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+      <!-- Table -->
+      <div v-else class="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+        <table class="min-w-[900px] w-full text-sm">
+          <thead class="bg-slate-50 text-slate-600 sticky top-0 z-10">
+            <tr>
+              <th class="text-left px-4 py-3">ID</th>
+              <th class="text-left px-4 py-3">SKU</th>
+              <th class="text-left px-4 py-3">Name</th>
+              <th class="text-right px-4 py-3">Price</th>
+              <th class="text-left px-4 py-3">Reference</th>
+              <th class="text-right px-4 py-3 w-40">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="p in products.data"
+              :key="p.id"
+              class="border-t border-slate-100 hover:bg-slate-50"
+            >
+              <td class="px-4 py-3 font-mono text-xs">{{ p.id }}</td>
+              <td class="px-4 py-3">{{ p.sku }}</td>
+              <td class="px-4 py-3">
+                <div class="font-medium text-slate-800 truncate max-w-[360px]">
+                  {{ p.name }}
+                </div>
+              </td>
+              <td class="px-4 py-3 text-right font-semibold">
+                Rp {{ formatIDR(p.price) }}
+              </td>
+              <td class="px-4 py-3">
+                <span class="text-xs rounded-full bg-slate-100 text-slate-700 px-2 py-0.5">
+                  {{ p.reference ?? '—' }}
+                </span>
+              </td>
+              <td class="px-4 py-3 text-right">
+                <div class="inline-flex items-center gap-2">
+                  <Link
+                    :href="`/admin/products/${p.id}/edit`"
+                    v-if="can('product.update')"
+                    as="button"
+                    class="rounded-xl border border-slate-300 px-3 py-1.5 text-xs hover:bg-slate-100"
+                  >
+                    Edit
+                  </Link>
+                  <Link
+                    :href="`/admin/products/${p.id}`"
+                    v-if="can('product.delete')"
+                    method="delete"
+                    as="button"
+                    class="rounded-xl bg-red-600 text-white px-3 py-1.5 text-xs hover:bg-red-700"
+                    @click.prevent="(e) => { if (confirm('Delete this product?')) e.target.closest('form')?.submit?.() }"
+                  >
+                    Delete
+                  </Link>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
-    <!-- Pagination -->
-    <nav class="mt-4 flex gap-2 flex-wrap">
-      <Link
-        v-for="l in products.links"
-        :key="l.url"
-        :href="l.url || '#'"
-        v-html="l.label"
-        :class="[
-          'px-3 py-1 border rounded',
-          l.active ? 'font-bold underline border-blue-500' : 'border-gray-200',
-          !l.url && 'opacity-50 pointer-events-none'
-        ]"
-      />
-    </nav>
-  </main>
+      <!-- Pagination -->
+      <nav v-if="products.links?.length > 3" class="mt-6 flex flex-wrap items-center gap-2">
+        <Link
+          v-for="l in products.links"
+          :key="l.url ?? l.label"
+          :href="l.url || '#'"
+          v-html="l.label"
+          :class="[
+            'px-3 py-1.5 rounded-lg border text-sm',
+            l.active
+              ? 'border-slate-800 bg-slate-900 text-white'
+              : 'border-slate-200 bg-white hover:bg-slate-50',
+            !l.url && 'opacity-50 pointer-events-none'
+          ]"
+        />
+      </nav>
+    </main>
+  </AppLayout>
 </template>

@@ -17,7 +17,7 @@ class AdminUserSeeder extends Seeder
             ['email' => 'admin@tripayshop.local'],
             [
                 'name' => 'Admin',
-                'password' => Hash::make('password123'), // ganti saat deploy
+                'password' => Hash::make('password123'),
             ]
         );
 

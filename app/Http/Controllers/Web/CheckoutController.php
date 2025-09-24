@@ -35,28 +35,31 @@ class CheckoutController extends Controller
 
     public function store(CheckoutRequest $request, TripayService $tripay)
     {
+
+        // dd($request->all());
         $product = Product::findOrFail($request->integer('product_id'));
 
         $invoice = Invoice::create([
             'product_id'     => $product->id,
             'buyer_email'    => $request->string('buyer_email'),
+            'buyer_user_id'  => $request->user()->id,
             'buyer_phone'    => $request->string('buyer_phone'),
             'payment_method' => $request->string('payment_method'),
             'amount'         => $product->price,
             'status'         => 'pending_local',
         ]);
 
-        $merchantRef = 'INV-'.now()->format('YmdHis').'-'.$invoice->id;
+        $merchantRef = 'INV-' . now()->format('YmdHis') . '-' . $invoice->id;
 
         $payload = [
-            'method'         => (string)$request->string('payment_method'), 
+            'method'         => (string)$request->string('payment_method'),
             'merchant_ref'   => $merchantRef,
             'amount'         => (int)$product->price,
-            'customer_name'  => 'Customer '.$invoice->id,
+            'customer_name'  => 'Customer ' . $invoice->id,
             'customer_email' => (string)$request->string('buyer_email'),
             'customer_phone' => (string)$request->string('buyer_phone'),
             'order_items'    => [[
-                'sku'         => $product->sku,
+                'sku'         => $product->reference ?? $product->sku,
                 'name'        => $product->name,
                 'price'       => (int)$product->price,
                 'quantity'    => 1,
@@ -74,7 +77,7 @@ class CheckoutController extends Controller
                 'raw_response' => $result['body'] ?? null,
                 'merchant_ref' => $merchantRef,
             ]);
-            return back()->withErrors(['checkout' => 'Gagal membuat transaksi (HTTP '.$result['status'].'): '.json_encode($result['body'])]);
+            return back()->withErrors(['checkout' => 'Gagal membuat transaksi (HTTP ' . $result['status'] . '): ' . json_encode($result['body'])]);
         }
 
         if (!($result['success'] ?? false)) {
@@ -99,7 +102,7 @@ class CheckoutController extends Controller
             return Inertia::location($data['checkout_url']); // <<<
         }
 
-        return redirect()->route('home')->with('success', 'Transaksi dibuat, reference: '.$invoice->tripay_reference);
+        return redirect()->route('home')->with('success', 'Transaksi dibuat, reference: ' . $invoice->tripay_reference);
     }
 
     public function return(Request $request)
@@ -131,7 +134,7 @@ class CheckoutController extends Controller
         $invoice = Invoice::where('merchant_ref', $merchantRef)->first();
         if ($invoice) {
             $invoice->update([
-                'status' => $status, 
+                'status' => $status,
                 'raw_response' => $payload,
             ]);
         }
