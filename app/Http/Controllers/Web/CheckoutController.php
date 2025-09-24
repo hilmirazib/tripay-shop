@@ -111,6 +111,31 @@ class CheckoutController extends Controller
 
     public function callback(Request $request)
     {
-        return response()->json(['ok' => true]);
+        $payload = $request->all();
+        $signature = $payload['signature'] ?? null;
+        $merchantRef = $payload['merchant_ref'] ?? null;
+        $amount = $payload['amount'] ?? null;
+        $status = $payload['status'] ?? null;
+
+        // 1) Verify signature
+        $expected = hash_hmac(
+            'sha256',
+            config('tripay.merchant_code') . $merchantRef . $amount,
+            config('tripay.private_key')
+        );
+
+        if ($signature !== $expected) {
+            return response()->json(['error' => 'Invalid signature'], 403);
+        }
+
+        $invoice = Invoice::where('merchant_ref', $merchantRef)->first();
+        if ($invoice) {
+            $invoice->update([
+                'status' => $status, 
+                'raw_response' => $payload,
+            ]);
+        }
+
+        return response()->json(['success' => true]);
     }
 }
